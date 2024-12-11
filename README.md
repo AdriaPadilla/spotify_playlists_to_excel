@@ -1,6 +1,6 @@
 # Spotify Playlist and Artist Data Extractor
 
-This script automates the process of extracting and organizing data from Spotify playlists and artists using the Spotipy library and anonymous API access through **SpotifyAnon**. The workflow includes downloading playlist data, processing it into structured formats, and fetching detailed artist information.
+This script streamlines the **extraction and organization of data from Spotify's "Daily Top 50 Tracks" playlists across 74 countries**, along with detailed information about the associated artists. Leveraging the Spotipy library and anonymous API access via SpotifyAnon, it automates the entire workflow: downloading playlist data, transforming it into structured formats, and retrieving comprehensive artist metadata for seamless analysis.
 
 ## Features
 - **Playlist Data Extraction**: Downloads data from Spotify playlists listed in an Excel file (`playlist.xlsx`), saving it in JSON format.
