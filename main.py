@@ -8,9 +8,9 @@ import os
 import glob
 from tqdm import tqdm
 import random
+from spotipy_anon import SpotifyAnon
 
-client_credentials_manager = SpotifyClientCredentials(client_id='YOUR_CLIENT_API_ID',client_secret='YOUR_CLIENT_API_SECRET')
-spotify = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+spotify = spotipy.Spotify(auth_manager=SpotifyAnon())
 
 today = date.today().isoformat()
 file_path = f"raw_data/{today}"
@@ -26,17 +26,20 @@ def get_playlist_data():
 
         if not os.path.exists(playlists_file_path):
             os.makedirs(playlists_file_path)
-
         if os.path.exists(file_name):
             print(f"Playlist {playlist_id} - {pais} yet downloaded")
             pass
-
         else:
             print(f"Getting Data for {pais} - {playlist_id}")
-            api_response = spotify.playlist_items(playlist_id)
-            with open(file_name, 'w', encoding='utf-8') as f:
-                json.dump(api_response, f, ensure_ascii=False, indent=4)
-            time.sleep(2)
+            try:
+                api_response = spotify.playlist_items(playlist_id)
+                print(api_response)
+                with open(file_name, 'w', encoding='utf-8') as f:
+                    json.dump(api_response, f, ensure_ascii=False, indent=4)
+                time.sleep(2)
+            except:
+                print("fail")
+                pass
 
 def pharse_playlist_data_to_xlsx():
     files = glob.glob(f"{file_path}/playlist_items/*.json")
@@ -94,60 +97,10 @@ def pharse_playlist_data_to_xlsx():
 
         df = pd.DataFrame(playlist_data)
         df.to_excel(export_file_name,index=False)
-
     # Join all playlists in same file
     all_dfs = glob.glob(f"{file_path}/playlist_items/*.xlsx")
     global_df = pd.concat([pd.read_excel(file) for file in all_dfs])
     global_df.to_excel(f"raw_data/{today}/{today}-all_playlists_items.xlsx", index=False)
-
-
-def get_audio_features():
-    def get_features_api_data(track_id):
-        try:
-            audio_features = spotify.audio_features(track_id)
-            data = pd.DataFrame.from_dict(audio_features, orient='columns')
-            data["track_id"] = track_id
-            data.to_excel(f"{file_path}/audio_features/{track_id}-audio_features.xlsx", index=False)
-
-        except spotipy.exceptions.SpotifyException as e:
-            if e.http_status == 429:
-                print(e)
-                print("Error 409 Retry in 5 minutes")
-                time.sleep(300)
-                get_features_api_data(track_id)
-            if e.http_status == 503:
-                print(e)
-                print("Error 503 Retry in 5 minutes")
-                time.sleep(300)
-                get_features_api_data(track_id)
-            else:
-                raise e
-
-    df = pd.read_excel(f"raw_data/{today}/{today}-all_playlists_items.xlsx")
-
-    tracks = df["track_id"].unique()
-    tracks = tracks.tolist()
-    print("Getting Audio Features")
-    if not os.path.exists(f"{file_path}/audio_features/"):
-            os.makedirs(f"{file_path}/audio_features/")
-
-    for track in tqdm(tracks):
-        wait_time = random.randint(1,2)
-        path = f"{file_path}/audio_features/{track}-audio_features.xlsx"
-        if not os.path.exists(path):
-            get_features_api_data(track)
-            time.sleep(wait_time)
-        else:
-            print(f"Audio Features for track with ID:{track} Downloaded")
-            pass
-    all_features = glob.glob(f"{file_path}/audio_features/*.xlsx")
-    concat_features = pd.concat([pd.read_excel(file) for file in all_features])
-    concat_features.drop(['duration_ms', "type","uri","analysis_url"], axis=1, inplace=True)
-    concat_features.track_id = concat_features.track_id.astype(str)
-    main_frame = pd.read_excel(f"{file_path}/{today}-all_playlists_items.xlsx")
-    main_frame = main_frame.merge(concat_features, on="track_id", how="left")
-    main_frame.to_excel(f"raw_data/{today}/{today}-all_playlists_items.xlsx", index=False)
-
 
 def get_artist_info():
     def get_artists_api_data(artist_id):
@@ -156,8 +109,11 @@ def get_artist_info():
             # Guardem la ROW amb les dades noves en una llista
             data = {}
             data["artist_followers"] = artist_info["followers"]["total"]
-            data["artist_genres"] = artist_info["genres"]
-            data["artist_main_genres"] = artist_info["genres"][0]
+            if artist_info["genres"]:
+                data["artist_genres"] = artist_info["genres"]
+            else:
+                data["artist_genres"] = "no genre"
+
             data["primer_artista_id"] = artist_id
             data["artist_popularity"] = artist_info["popularity"]
             final = pd.DataFrame.from_dict([data], orient='columns')
@@ -198,10 +154,13 @@ def get_artist_info():
     concat_artists = pd.concat([pd.read_excel(file) for file in all_artists])
     main_frame = pd.read_excel(f"{file_path}/{today}-all_playlists_items.xlsx")
     main_frame = main_frame.merge(concat_artists, on="primer_artista_id", how="left")
+    main_frame["artist_main_genre"] = main_frame["artist_genres"].str.extract(r"'([^']*)'")[0]
+
     main_frame.to_excel(f"raw_data/{today}/{today}-all_playlists_items.xlsx", index=False)
 
-
+print("Getting Playlist Data")
 get_playlist_data()
 pharse_playlist_data_to_xlsx()
-get_audio_features()
+print("Getting Artist Data")
 get_artist_info()
+print("job done!")
