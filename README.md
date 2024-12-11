@@ -1,5 +1,8 @@
 # Spotify Playlist and Artist Data Extractor
 
+![Spotixplore graph image](https://raw.githubusercontent.com/AdriaPadilla/spotixplore/master/img/img1.png
+)
+
 This script streamlines the **extraction and organization of data from Spotify's "Daily Top 50 Tracks" playlists across 74 countries**, along with detailed information about the associated artists. Leveraging the Spotipy library and anonymous API access via SpotifyAnon, it automates the entire workflow: downloading playlist data, transforming it into structured formats, and retrieving comprehensive artist metadata for seamless analysis.
 
 ## Features
